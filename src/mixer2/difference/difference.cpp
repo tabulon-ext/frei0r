@@ -19,7 +19,7 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 #define NBYTES 4
 #define ALPHA 3
@@ -69,9 +69,8 @@ public:
 };
 
 
-frei0r::construct<difference> plugin("difference",
+static frei0r::construct<difference> plugin("difference",
                                      "Perform an RGB[A] difference operation between the pixel sources.",
                                      "Jean-Sebastien Senecal",
                                      0,2,
                                      F0R_COLOR_MODEL_RGBA8888);
-

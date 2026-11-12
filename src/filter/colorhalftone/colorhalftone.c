@@ -26,10 +26,11 @@
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include "frei0r.h"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
-double PI=3.14159265358979;
+static const double PI=3.14159265358979;
 
 typedef struct colorhalftone_instance
 {
@@ -66,13 +67,16 @@ static inline double smoothStep(double a, double b, double x)
 		x = (x - a) / (b - a);
 		return x*x * (3 - 2*x);
 }
-void color_halftone(f0r_instance_t instance, double time,
+static void color_halftone(f0r_instance_t instance, double time,
 		const uint32_t* inframe, uint32_t* outframe)
 {
   colorhalftone_instance_t* inst = (colorhalftone_instance_t*)instance;
 
   int width = inst->width;
   int height =  inst->height;
+
+  // Copy input to output to preserve alpha channel
+  memcpy(outframe, inframe, width * height * sizeof(uint32_t));
 
   double dotRadius = inst->dot_radius * 9.99;
   dotRadius = ceil(dotRadius);
@@ -119,7 +123,7 @@ void color_halftone(f0r_instance_t instance, double time,
         // We check all four neighbours, but in practice only one can ever overlap any given point.
         for (i = 0; i < 5; i++) 
         {
-          // Find neigbouring grid point
+          // Find neighbouring grid point
           ttx = tx + mx[i]*gridSize;
           tty = ty + my[i]*gridSize;
           // Transform back into image space
@@ -268,4 +272,3 @@ void f0r_update(f0r_instance_t instance, double time,
   assert(instance);
   color_halftone(instance, time, inframe, outframe);
 }
-

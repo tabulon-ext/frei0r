@@ -26,7 +26,7 @@
 #include <assert.h>
 
 #include "frei0r.h"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 typedef struct posterize_instance
 {
@@ -121,6 +121,9 @@ void f0r_update(f0r_instance_t instance, double time,
   double levelsInput = inst->levels * 48.0;
   levelsInput = CLAMP(levelsInput, 0.0, 48.0) + 2.0;
   int numLevels = (int)levelsInput;
+
+  // Prevent division by zero
+  if (numLevels < 2) numLevels = 2;
 
   // create levels table
   unsigned char levels[256];

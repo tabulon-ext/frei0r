@@ -27,9 +27,9 @@
 #include <math.h>
 
 #include "frei0r.h"
-#include "frei0r_cairo.h"
+#include "frei0r/cairo.h"
 
-double PI=3.14159265358979;
+static const double PI=3.14159265358979;
 
 typedef struct cairo_affineblend_instance
 {
@@ -75,27 +75,27 @@ void f0r_get_param_info(f0r_param_info_t* info, int param_index)
 		case 0:
 			info->name = "x";
 			info->type = F0R_PARAM_DOUBLE;
-			info->explanation = "X position of second input, value interperted as range -2*width - 3*width";
+			info->explanation = "X position of second input, value interpreted as range -2*width - 3*width";
 			break;
 		case 1:
 			info->name = "y";
 			info->type = F0R_PARAM_DOUBLE;
-			info->explanation = "Y position of second input, value interperted as range -2*height - 3*height";
+			info->explanation = "Y position of second input, value interpreted as range -2*height - 3*height";
 			break;
 		case 2:
 			info->name = "x scale";
 			info->type = F0R_PARAM_DOUBLE;
-			info->explanation = "X scale of second input, value interperted as range 0 - 5";
+			info->explanation = "X scale of second input, value interpreted as range 0 - 5";
 			break;
 		case 3:
 			info->name = "y scale";
 			info->type = F0R_PARAM_DOUBLE;
-			info->explanation = "Y scale of second input, value interperted as range 0 - 5";
+			info->explanation = "Y scale of second input, value interpreted as range 0 - 5";
 			break;
 		case 4:
 			info->name = "rotation";
 			info->type = F0R_PARAM_DOUBLE;
-			info->explanation = "Rotation of second input, value interperted as range 0 - 360";
+			info->explanation = "Rotation of second input, value interpreted as range 0 - 360";
 			break;
 		case 5:
 			info->name = "opacity";
@@ -134,8 +134,11 @@ f0r_instance_t f0r_construct(unsigned int width, unsigned int height)
   inst->mix = 1.0;
 
 	const char* blend_val = NORMAL;
-  inst->blend_mode  = (char*) malloc (strlen(blend_val) + 1 );
-	strcpy (inst->blend_mode, blend_val);
+  {
+    size_t blen = strlen(blend_val) + 1;
+    inst->blend_mode = (char*) malloc(blen);
+    memcpy(inst->blend_mode, blend_val, blen);
+  }
 
   return (f0r_instance_t)inst;
 }
@@ -173,8 +176,14 @@ void f0r_set_param_value(f0r_instance_t instance, f0r_param_t param, int param_i
       break;
 		case 6:
 			sval = (*(char**)param);
-			inst->blend_mode = (char*)realloc (inst->blend_mode, strlen(sval) + 1);
-			strcpy (inst->blend_mode, sval);
+			{
+				size_t slen = strlen(sval) + 1;
+				char *new_mode = (char*)realloc(inst->blend_mode, slen);
+				if (new_mode) {
+					inst->blend_mode = new_mode;
+					memcpy(inst->blend_mode, sval, slen);
+				}
+			}
       break;
 		case 7:
 			inst->anchor_x = *((double*)param);
@@ -221,7 +230,7 @@ void f0r_get_param_value(f0r_instance_t instance, f0r_param_t param, int param_i
   }
 }
 
-void draw_composite(cairo_affineblend_instance_t* inst, unsigned char* out, unsigned char* dst, unsigned char* src, double time)
+static void draw_composite(cairo_affineblend_instance_t* inst, unsigned char* out, unsigned char* dst, unsigned char* src, double time)
 {
   int w = inst->width;
   int h = inst->height;
@@ -298,13 +307,21 @@ void f0r_update2(f0r_instance_t instance, double time, const uint32_t* inframe1,
   assert(instance);
   cairo_affineblend_instance_t* inst = (cairo_affineblend_instance_t*) instance;
 
-  unsigned char* dst = (unsigned char*)inframe1;
-  unsigned char* src = (unsigned char*)inframe2;
   unsigned char* out = (unsigned char*)outframe;
   int pixels = inst->width * inst->height;
+  unsigned char* dst = malloc((size_t)pixels * sizeof(uint32_t));
+  unsigned char* src = malloc((size_t)pixels * sizeof(uint32_t));
+  if (!dst || !src) {
+    free(dst);
+    free(src);
+    memcpy(outframe, inframe1, (size_t)pixels * sizeof(uint32_t));
+    return;
+  }
 
-  frei0r_cairo_premultiply_rgba (dst, pixels, -1);
-  frei0r_cairo_premultiply_rgba (src, pixels, -1);
+  frei0r_cairo_premultiply_rgba2((const unsigned char*)inframe1, dst, pixels, -1);
+  frei0r_cairo_premultiply_rgba2((const unsigned char*)inframe2, src, pixels, -1);
   draw_composite (inst, out, dst, src, time);
   frei0r_cairo_unpremultiply_rgba (out, pixels);
+  free(src);
+  free(dst);
 }

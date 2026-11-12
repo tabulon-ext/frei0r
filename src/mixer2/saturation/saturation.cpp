@@ -19,8 +19,8 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
-#include "frei0r_colorspace.h"
+#include "frei0r/math.h"
+#include "frei0r/colorspace.h"
 
 #define NBYTES 4
 
@@ -63,7 +63,7 @@ public:
  
          g1 = g2;
  
-         /*  set the dstination  */
+         /*  set the destination  */
          hsv_to_rgb_int(&r1, &g1, &b1);
  
          dst[0] = r1;
@@ -81,9 +81,8 @@ public:
 };
 
 
-frei0r::construct<saturation> plugin("saturation",
+static frei0r::construct<saturation> plugin("saturation",
                                      "Perform a conversion to saturation only of the source input1 using the saturation level of input2.",
                                      "Jean-Sebastien Senecal",
                                      0,2,
                                      F0R_COLOR_MODEL_RGBA8888);
-

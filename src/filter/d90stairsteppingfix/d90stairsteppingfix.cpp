@@ -135,7 +135,7 @@ public:
              * and therefore get the number (line1+line2)/2, here 6.5.
              * This positions will later be used for interpolation.
              */
-            float filled[newHeight];
+            float *filled = (float *) malloc(newHeight * sizeof(float));
             
             int count = 0;
             int index = 0;
@@ -160,7 +160,7 @@ public:
              * Calculate scaling numbers to scale the full height matrix
              * with the slice lines down to the original height (720p).
              */
-            float downScaling[height];
+            float *downScaling = (float *) malloc(height * sizeof(float));
             
             float scaleFactor = (float) newHeight/height;
 //          printf("scale factor: %f\n", scaleFactor);
@@ -184,6 +184,9 @@ public:
                 m_mesh[i] = (1-offset)*filled[index] + offset*filled[index+1];
 //              printf("%f at %d with weights %f and %f\n", m_mesh[i], i, (1-offset)*downScaling[i], offset*downScaling[i+1]);
             }
+
+            free(downScaling);
+            free(filled);
             
         } else {
             // Not a 720p file.
@@ -219,7 +222,7 @@ public:
                 for (unsigned int pixel = 0; pixel < width*4; pixel++) {
                     // Use linear interpolation on the colours
                     
-                    // Use pointer arithmetics. Colour values are stored 
+                    // Use pointer arithmetic. Colour values are stored 
                     // as AABBGGRR in the uint32_t values.
                     // Convert each colour separately.
                     
@@ -244,7 +247,7 @@ private:
 
 
 
-frei0r::construct<D90StairsteppingFix> plugin("Nikon D90 Stairstepping fix",
+static frei0r::construct<D90StairsteppingFix> plugin("Nikon D90 Stairstepping fix",
                 "Removes the Stairstepping from Nikon D90 videos (720p only) by interpolation",
                 "Simon A. Eugster (Granjow)",
                 0,2,

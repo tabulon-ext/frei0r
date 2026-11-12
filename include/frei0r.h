@@ -23,7 +23,7 @@
  * @section sec_overview Overview
  *
  * If you are new to frei0r, the best thing is probably to have
- * a look at the <a href="frei0r_8h-source.html">frei0r header</a>,
+ * a look at the <a href="frei0r_8h_source.html">frei0r header</a>,
  * which is quite simple.
  *
  * After that, you might want to look at the 
@@ -41,7 +41,7 @@
  * @section sec_changes Changes
  *
  * @subsection sec_changes_1_1_1_2 From frei0r 1.1 to frei0r 1.2
- *   - make <vendor> in plugin path optional
+ *   - make \<vendor\> in plugin path optional
  *   - added section on FREI0R_PATH environment variable
  *   - added requirement to initialize all parameters in f0r_construct()
  *
@@ -83,8 +83,8 @@
  * - /usr/local/lib/frei0r-1/gephex/coma/invert0r.so
  * - /home/martin/.frei0r-1/lib/martin/test.so
  *
- * Like in these examples plugins should be placed in "vendor" subdirs
- * to reduce name clashes. However, <vendor> is optional and may be left blank.
+ * Like in these examples plugins should be placed in \<vendor\> subdirs
+ * to reduce name clashes. However, \<vendor\> is optional and may be left blank.
  *
  * @subsection sec_order Plugin Loading Order
  *
@@ -117,7 +117,7 @@
  * the platform running and adjust the parsed char accordingly, for
  * example:
  *
- * FREI0R_PATH=C:\Program Files\frei0r-1;%%PROGRAMFILES%\frei0r-1
+ * FREI0R_PATH="C:\Program Files\frei0r-1;%%PROGRAMFILES%\frei0r-1"
  *
  */
 
@@ -137,7 +137,7 @@
  * @subsection sec_icon_location Icon location
  *
  * The exact location where the application should look for the
- * plugin is platform dependant.
+ * plugin is platform dependent.
  *
  * For Windows platforms, the icon should be at the same place as
  * the plugin containing the effect.
@@ -190,7 +190,7 @@
  * - \ref f0r_update2
  *
  * If a thread is in one of these methods its allowed for another thread to
- * enter one of theses methods for a different effect instance. But for one
+ * enter one of these methods for a different effect instance. But for one
  * effect instance only one thread is allowed to execute any of these methods. 
  */
 
@@ -211,6 +211,62 @@
 
 #include <inttypes.h>
 
+/*
+ * Bundle builds give every plugin a private, token-prefixed copy of the
+ * frei0r entry points.  Ordinary module builds leave these names untouched.
+ * CMake validates that FREI0R_BUNDLE_PLUGIN_TOKEN is a C identifier before
+ * adding it to a bundle target.
+ */
+#ifdef FREI0R_BUNDLE_PLUGIN_TOKEN
+#define F0R_BUNDLE_CONCAT_INNER(left, right) left##right
+#define F0R_BUNDLE_CONCAT(left, right) F0R_BUNDLE_CONCAT_INNER(left, right)
+#define F0R_BUNDLE_ENTRY(name) \
+  F0R_BUNDLE_CONCAT(FREI0R_BUNDLE_PLUGIN_TOKEN, F0R_BUNDLE_CONCAT(_, name))
+
+#define f0r_init F0R_BUNDLE_ENTRY(f0r_init)
+#define f0r_deinit F0R_BUNDLE_ENTRY(f0r_deinit)
+#define f0r_get_plugin_info F0R_BUNDLE_ENTRY(f0r_get_plugin_info)
+#define f0r_get_param_info F0R_BUNDLE_ENTRY(f0r_get_param_info)
+#define f0r_construct F0R_BUNDLE_ENTRY(f0r_construct)
+#define f0r_destruct F0R_BUNDLE_ENTRY(f0r_destruct)
+#define f0r_set_param_value F0R_BUNDLE_ENTRY(f0r_set_param_value)
+#define f0r_get_param_value F0R_BUNDLE_ENTRY(f0r_get_param_value)
+#define f0r_update F0R_BUNDLE_ENTRY(f0r_update)
+#define f0r_update2 F0R_BUNDLE_ENTRY(f0r_update2)
+
+/* Bundle objects are linked into one library, never loaded as modules. */
+#undef FREI0R_PUBLIC
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define FREI0R_PUBLIC
+#elif defined(__GNUC__) && __GNUC__ >= 4
+#define FREI0R_PUBLIC __attribute__((visibility("hidden")))
+#else
+#define FREI0R_PUBLIC
+#endif
+#endif
+
+/**
+ * Marks the frei0r entry points for export when building a plugin.
+ *
+ * Define FREI0R_PLUGIN when compiling a plugin on Windows. Hosts do not need
+ * to define it. On other supported compilers the API remains public even when
+ * a third-party plugin uses hidden symbol visibility. Build systems may define
+ * FREI0R_PUBLIC themselves when embedding plugins into another library.
+ */
+#ifndef FREI0R_PUBLIC
+#if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(FREI0R_PLUGIN)
+#define FREI0R_PUBLIC __declspec(dllexport)
+#else
+#define FREI0R_PUBLIC
+#endif
+#elif defined(__GNUC__) && __GNUC__ >= 4
+#define FREI0R_PUBLIC __attribute__((visibility("default")))
+#else
+#define FREI0R_PUBLIC
+#endif
+#endif
+
 /**
  * The frei0r API major version
  */
@@ -227,13 +283,13 @@
  * f0r_init() is called once when the plugin is loaded by the application.
  * \see f0r_deinit
  */
-int f0r_init(void);
+FREI0R_PUBLIC int f0r_init(void);
 
 /**
  * f0r_deinit is called once when the plugin is unloaded by the application.
  * \see f0r_init
  */
-void f0r_deinit(void);
+FREI0R_PUBLIC void f0r_deinit(void);
 
 //---------------------------------------------------------------------------
 
@@ -260,7 +316,7 @@ void f0r_deinit(void);
  * List of supported color models.
  *
  * Note: the color models are endian independent, because the
- * color components are defined by their positon in memory, not
+ * color components are defined by their position in memory, not
  * by their significance in an uint32_t value.
  * 
  * For effects that work on the color components,
@@ -309,7 +365,7 @@ void f0r_deinit(void);
 
 /**
  * In PACKED32, each pixel is represented by 4 consecutive
- * bytes, but it is not defined how the color componets are
+ * bytes, but it is not defined how the color components are
  * stored. The true color format could be RGBA8888,
  * BGRA8888, a packed 32 bit YUV format, or any other
  * color format that stores pixels in 32 bit.
@@ -360,7 +416,7 @@ typedef struct f0r_plugin_info
  *
  * \param info Pointer to an info struct allocated by the application.
  */
-void f0r_get_plugin_info(f0r_plugin_info_t* info);
+FREI0R_PUBLIC void f0r_get_plugin_info(f0r_plugin_info_t* info);
 
 //---------------------------------------------------------------------------
 
@@ -460,7 +516,7 @@ typedef struct f0r_param_info
  * \param param_index the index of the parameter to be queried (from 0 to
  *   num_params-1)
  */
-void f0r_get_param_info(f0r_param_info_t* info, int param_index);
+FREI0R_PUBLIC void f0r_get_param_info(f0r_param_info_t* info, int param_index);
 
 //---------------------------------------------------------------------------
 
@@ -483,7 +539,7 @@ typedef void* f0r_instance_t;
  *
  * \see f0r_destruct
  */
-f0r_instance_t f0r_construct(unsigned int width, unsigned int height);
+FREI0R_PUBLIC f0r_instance_t f0r_construct(unsigned int width, unsigned int height);
 
 /**
  * Destroys an effect instance.
@@ -492,7 +548,7 @@ f0r_instance_t f0r_construct(unsigned int width, unsigned int height);
  *
  * \see f0r_construct
  */
-void f0r_destruct(f0r_instance_t instance);
+FREI0R_PUBLIC void f0r_destruct(f0r_instance_t instance);
 
 //---------------------------------------------------------------------------
 
@@ -525,8 +581,8 @@ typedef void* f0r_param_t;
  *
  * \see f0r_get_param_value
  */
-void f0r_set_param_value(f0r_instance_t instance, 
-			 f0r_param_t param, int param_index);
+FREI0R_PUBLIC void f0r_set_param_value(f0r_instance_t instance,
+			       f0r_param_t param, int param_index);
 
 /**
  * This function allows the application to query the parameter values of an
@@ -545,8 +601,8 @@ void f0r_set_param_value(f0r_instance_t instance,
  *
   * \see f0r_set_param_value
  */
-void f0r_get_param_value(f0r_instance_t instance,
-			 f0r_param_t param, int param_index);
+FREI0R_PUBLIC void f0r_get_param_value(f0r_instance_t instance,
+			       f0r_param_t param, int param_index);
 
 //---------------------------------------------------------------------------
 
@@ -575,8 +631,8 @@ void f0r_get_param_value(f0r_instance_t instance,
  *
  * \see f0r_update2
  */
-void f0r_update(f0r_instance_t instance, 
-		double time, const uint32_t* inframe, uint32_t* outframe);
+FREI0R_PUBLIC void f0r_update(f0r_instance_t instance,
+		      double time, const uint32_t* inframe, uint32_t* outframe);
 
 //---------------------------------------------------------------------------
 
@@ -601,12 +657,12 @@ void f0r_update(f0r_instance_t instance,
  *
  * \see f0r_update
  */
-void f0r_update2(f0r_instance_t instance,
-		 double time,
-		 const uint32_t* inframe1,
-		 const uint32_t* inframe2,
-		 const uint32_t* inframe3,
-		 uint32_t* outframe);
+FREI0R_PUBLIC void f0r_update2(f0r_instance_t instance,
+		       double time,
+		       const uint32_t* inframe1,
+		       const uint32_t* inframe2,
+		       const uint32_t* inframe3,
+		       uint32_t* outframe);
 //---------------------------------------------------------------------------
 
 #endif

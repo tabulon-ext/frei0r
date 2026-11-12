@@ -64,9 +64,15 @@
   [3] http://kdenlive.org/users/granjow/writing-light-graffiti-effect
 
   */
+
+#if defined(_MSC_VER)
+#define _USE_MATH_DEFINES
+#endif /* _MSC_VER */
+#include <cmath>
+
 #include "frei0r.hpp"
 
-#include <cmath>
+
 #include <cstdio>
 #include <climits>
 #include <algorithm>
@@ -846,7 +852,7 @@ public:
                         fb = m_rgbLightMask[pixel].b;
 
                         if (lowerOverexposure > 0) {
-                            // Comparisation of plots with octave:
+                            // Comparison of plots with octave:
                             // clf;hold on;plot([0 1],[0 1],'k');plot(range,ones(length(range),1),'k');plot(range,sqrt(range));plot(range,log(1+range),'k');plot(range,log(1+range),'g');plot(range,(log(1+range)/3).^.5,'r');axis equal
                             fr = pow( log(1+fr)/lowerOverexposure, .5 );
                             fg = pow( log(1+fg)/lowerOverexposure, .5 );
@@ -1059,7 +1065,7 @@ private:
 
 
 
-frei0r::construct<LightGraffiti> plugin("Light Graffiti",
+static frei0r::construct<LightGraffiti> plugin("Light Graffiti",
                 "Creates light graffitis from a video by keeping the brightest spots.",
                 "Simon A. Eugster (Granjow)",
                 0,3,

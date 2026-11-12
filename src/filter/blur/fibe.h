@@ -35,13 +35,13 @@ Copyright (C) 2011  Marko Cebokli    http://lea.hamradio.si/~s57uuu
        CONTENTS OF FIBE.H FILE:
     --------------------------------
 
-calcab_lp1()	auxilliary function to calculate lowpass
+calcab_lp1()	auxiliary function to calculate lowpass
         tap coefficients for FIBE-2
 
-young_vliet()	auxilliary function to calculate tap coefs
+young_vliet()	auxiliary function to calculate tap coefs
         for Gauss approximation with FIBE-3
 
-rep()		auxilliary function to calculate wraparound
+rep()		auxiliary function to calculate wraparound
         values for FIBE-2
 
 fibe1o_8()	one tap quadrilateral IIR filter
@@ -69,12 +69,12 @@ and therefore time consuming "walks" through memory.
 
 #include <sys/types.h>
 #include <string.h>
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 //---------------------------------------------------------
 //koeficienti za biquad lowpass  iz f in q
 // f v Nyquistih    0.0 < f < 0.5
-void calcab_lp1(float f, float q, float *a0, float *a1, float *a2, float *b0, float *b1, float *b2)
+static void calcab_lp1(float f, float q, float *a0, float *a1, float *a2, float *b0, float *b1, float *b2)
 {
     float a,b;
 
@@ -94,7 +94,7 @@ void calcab_lp1(float f, float q, float *a0, float *a1, float *a2, float *b0, fl
 //Recursive implementation of the Gaussian filter
 //Signal Processing 44 (1995) 139-151
 // s=sigma    0.5 < s < 200.0
-void young_vliet(float s, float *a0, float *a1, float *a2, float *a3)
+static void young_vliet(float s, float *a0, float *a1, float *a2, float *a3)
 {
     float q;
 
@@ -118,7 +118,7 @@ void young_vliet(float s, float *a0, float *a1, float *a2, float *a3)
 //kompenzacija na desni
 //c=0.0 "odziv na zacetno stanje" (zunaj crno)
 //gain ni kompenziran
-void rep(float v1, float v2, float c, float *i1, float *i2, int n,  float a1, float a2)
+static void rep(float v1, float v2, float c, float *i1, float *i2, int n,  float a1, float a2)
 {
     int i;
     float lb[8192];
@@ -144,7 +144,7 @@ void rep(float v1, float v2, float c, float *i1, float *i2, int n,  float a1, fl
 //loops rearanged for more locality (better cache hit ratio)
 //outer (vertical) loop 2x unroll to break dependency chain
 //simplified indexes
-void fibe1o_8(const uint32_t* inframe, uint32_t* outframe, float_rgba *s, int w, int h, float a, int ec)
+static void fibe1o_8(const uint32_t* inframe, uint32_t* outframe, float_rgba *s, int w, int h, float a, int ec)
 {
     int i,j;
     float b,g,g4,avg,avg1,cr,cg,cb,g4a,g4b;
@@ -493,7 +493,7 @@ void fibe1o_8(const uint32_t* inframe, uint32_t* outframe, float_rgba *s, int w,
 // 2-tap IIR v stirih smereh   a only verzija, a0=1.0
 //desno kompenzacijo izracuna direktno (rdx,rsx,rcx)
 //optimized for speed
-void fibe2o_8(const uint32_t* inframe, uint32_t* outframe, float_rgba s[], int w, int h, float a1, float a2,  float rd1, float rd2, float rs1, float rs2, float rc1, float rc2, int ec)
+static void fibe2o_8(const uint32_t* inframe, uint32_t* outframe, float_rgba s[], int w, int h, float a1, float a2,  float rd1, float rd2, float rs1, float rs2, float rc1, float rc2, int ec)
 {
     float cr,cg,cb,g,g4,avg,gavg,avgg,iavg;
     float_rgba rep1,rep2;
@@ -857,7 +857,7 @@ void fibe2o_8(const uint32_t* inframe, uint32_t* outframe, float_rgba s[], int w
 //a only verzija, a0=1.0
 //edge efekt na desni kompenzira tako, da racuna 256 vzorcev
 //cez rob in in gre potem nazaj
-void fibe3_8(const uint32_t* inframe, uint32_t* outframe, float_rgba s[], int w, int h, float a1, float a2, float a3, int ec)
+static void fibe3_8(const uint32_t* inframe, uint32_t* outframe, float_rgba s[], int w, int h, float a1, float a2, float a3, int ec)
 {
     float cr,cg,cb,g,g4;
     int i,j;

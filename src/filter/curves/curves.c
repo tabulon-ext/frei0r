@@ -28,7 +28,7 @@
 #include <stdio.h>
 
 #include "frei0r.h"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 #define MAX3(a, b, c) ( ( a > b && a > c) ? a : (b > c ? b : c) )
 #define MIN3(a, b, c) ( ( a < b && a < c) ? a : (b < c ? b : c) )
@@ -78,7 +78,7 @@ typedef struct curves_instance
 // r,g,b values are from 0 to 255
 // h = [0,360], s = [0,1], v = [0,1]
 //              if s == 0, then h = -1 (undefined)
-void RGBtoHSV(double r, double g, double b, double *h, double *s, double *v)
+static void RGBtoHSV(double r, double g, double b, double *h, double *s, double *v)
 {
     double min = MIN3(r, g, b);
     double max = MAX3(r, g, b);
@@ -109,7 +109,7 @@ void RGBtoHSV(double r, double g, double b, double *h, double *s, double *v)
 
 // r,g,b values are from 0 to 1
 // h = [0,360], s = [0,1], v = [0,1]
-void HSVtoRGB(double *r, double *g, double *b, double h, double s, double v)
+static void HSVtoRGB(double *r, double *g, double *b, double h, double s, double v)
 {
     if (s == 0) {
         // achromatic (grey)
@@ -163,10 +163,10 @@ void HSVtoRGB(double *r, double *g, double *b, double h, double s, double v)
     }
 }
 
-void updateBsplineMap(f0r_instance_t instance);
-void updateCsplineMap(f0r_instance_t instance);
+static void updateBsplineMap(f0r_instance_t instance);
+static void updateCsplineMap(f0r_instance_t instance);
 
-char **param_names = NULL;
+static char **param_names = NULL;
 int f0r_init()
 {
   param_names = (char**)calloc(10, sizeof(char *));
@@ -198,7 +198,7 @@ void f0r_get_plugin_info(f0r_plugin_info_t* curves_info)
   curves_info->explanation = "Adjust luminance or color channel intensity with curve level mapping";
 }
 
-char *get_param_name(int param_index) {
+static char *get_param_name(int param_index) {
   return param_names[param_index];
 }
 
@@ -234,7 +234,7 @@ void f0r_get_param_info(f0r_param_info_t* info, int param_index)
   case 5:
     info->name = "Bézier spline";
     info->type = F0R_PARAM_STRING;
-    info->explanation = "Use cubic Bézier spline. Has to be a sorted list of points in the format \"handle1x;handle1y#pointx;pointy#handle2x;handle2y\"(pointx = in, pointy = out). Points are separated by a \"|\".The values can have \"double\" precision. x, y for points should be in the range 0-1. x,y for handles might also be out of this range.";
+    info->explanation = "Use cubic Bézier spline. Has to be a sorted list of points in the format 'handle1x;handle1y#pointx;pointy#handle2x;handle2y'(pointx = in, pointy = out). Points are separated by a '|'.The values can have 'double' precision. x, y for points should be in the range 0-1. x,y for handles might also be out of this range.";
   default:
 	if (param_index > 5) {
 	  info->name = get_param_name(param_index - 6);
@@ -255,9 +255,9 @@ f0r_instance_t f0r_construct(unsigned int width, unsigned int height)
   inst->pointNumber = 2;
   inst->formula = 1;
   inst->bspline = calloc(1, sizeof(char));
-  inst->bsplineMap = malloc(sizeof(double));
-  inst->csplineMap = malloc(sizeof(double));
-  inst->curveMap = malloc(sizeof(float));
+  inst->bsplineMap = NULL;
+  inst->csplineMap = NULL;
+  inst->curveMap = NULL;
   inst->points[0] = 0;
   inst->points[1] = 0;
   inst->points[2] = 1;
@@ -273,12 +273,12 @@ f0r_instance_t f0r_construct(unsigned int width, unsigned int height)
 
 void f0r_destruct(f0r_instance_t instance)
 {
-  if (((curves_instance_t*)instance)->bspline)
-      free(((curves_instance_t*)instance)->bspline);
-  free(((curves_instance_t*)instance)->bsplineMap);
-  free(((curves_instance_t*)instance)->csplineMap);
-  free(((curves_instance_t*)instance)->curveMap);
-  free(instance);
+  curves_instance_t* inst = (curves_instance_t*)instance;
+  free(inst->bspline);
+  free(inst->bsplineMap);
+  free(inst->csplineMap);
+  free(inst->curveMap);
+  free(inst);
 }
 
 void f0r_set_param_value(f0r_instance_t instance,
@@ -331,6 +331,7 @@ void f0r_set_param_value(f0r_instance_t instance,
 	  break;
 	case 3:
 	  inst->pointNumber = floor(*((f0r_param_double *)param) * 10);
+	  inst->pointNumber = MIN(inst->pointNumber, 5);
 	  break;
         case 4:
           inst->formula = *((f0r_param_double *)param);
@@ -386,9 +387,9 @@ void f0r_get_param_value(f0r_instance_t instance,
   }
 }
 
-double* gaussSLESolve(size_t size, double* A) {
+static double* gaussSLESolve(size_t size, double* A) {
 	int extSize = size + 1;
-	//direct way: tranform matrix A to triangular form
+	//direct way: transform matrix A to triangular form
 	for(int row = 0; row < size; row++) {
 		int col = row;
 		int lastRowToSwap = size - 1;
@@ -424,7 +425,7 @@ double* gaussSLESolve(size_t size, double* A) {
 
 
 
-double* calcSplineCoeffs(double* points, size_t pointsSize) {
+static double* calcSplineCoeffs(double* points, size_t pointsSize) {
 	double* coeffs = NULL;
 	int size = pointsSize;
 	int mxSize = size > 3?4:size;
@@ -493,7 +494,7 @@ double* calcSplineCoeffs(double* points, size_t pointsSize) {
 	return coeffs;
 }
 
-double spline(double x, double* points, size_t pointSize, double* coeffs) {
+static double spline(double x, double* points, size_t pointSize, double* coeffs) {
 	int size = pointSize;
 	if (size == 2) {
 		return coeffs[0] * x + coeffs[1];
@@ -524,7 +525,7 @@ double spline(double x, double* points, size_t pointSize, double* coeffs) {
     return -1.0;
 }
 
-void swap(double *points, int i, int j) {
+static void swap(double *points, int i, int j) {
   int offsetX = i * 2, offsetY = j * 2;
   double tempX = points[offsetX], tempY = points[offsetX + 1];
   points[offsetX] = points[offsetY];
@@ -539,14 +540,14 @@ void swap(double *points, int i, int j) {
  * \param t "time" in the range 0-1
  * \param points points[0] = point1, point[1] = handle1, point[2] = handle2, point[3] = point2
  */
-position pointOnBezier(double t, position points[4])
+static position pointOnBezier(double t, position points[4])
 {
     position pos;
 
     /*
      * Calculating a point on the bezier curve using the coefficients from Bernstein basis polynomial of degree 3.
      * Using the De Casteljau algorithm would be slightly faster when calculating a lot of values
-     * but the difference is far from noticable here since we update the spline only when the parameter changes
+     * but the difference is far from noticeable here since we update the spline only when the parameter changes
      */
     double c1 = (1-t) * (1-t) * (1-t);
     double c2 = 3 * t * (1-t) * (1-t);
@@ -557,6 +558,10 @@ position pointOnBezier(double t, position points[4])
     return pos;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+# define strtok_r strtok_s
+#endif
+
 /**
  * Splits given string into sub-strings at given delimiter.
  * \param string input string
@@ -564,16 +569,17 @@ position pointOnBezier(double t, position points[4])
  * \param tokens pointer to array of strings, will be filled with sub-strings
  * \return Number of sub-strings
  */
-int tokenise(char *string, const char *delimiter, char ***tokens)
+static int tokenise(char *string, const char *delimiter, char ***tokens)
 {
     int count = 0;
     char *input = strdup(string);
     char *result = NULL;
-    result = strtok(input, delimiter);
+	char *saveptr;
+    result = strtok_r(input, delimiter, &saveptr);
     while (result != NULL) {
         *tokens = realloc(*tokens, (count + 1) * sizeof(char *));
         (*tokens)[count++] = strdup(result);
-        result = strtok(NULL, delimiter);
+        result = strtok_r(NULL, delimiter, &saveptr);
     }
     free(input);
     return count;
@@ -582,7 +588,7 @@ int tokenise(char *string, const char *delimiter, char ***tokens)
 /**
  * Updates the color map according to the bézier spline described in the "Bézier spline" parameter.
  */
-void updateBsplineMap(f0r_instance_t instance)
+static void updateBsplineMap(f0r_instance_t instance)
 {
     assert(instance);
     curves_instance_t* inst = (curves_instance_t*)instance;
@@ -608,7 +614,7 @@ void updateBsplineMap(f0r_instance_t instance)
     char **pointStr = calloc(1, sizeof(char *));
     int count = tokenise(inst->bspline, "|", &pointStr);
 
-    bspline_point points[count];
+    bspline_point *points = (bspline_point *) malloc(count * sizeof(bspline_point));
 
     for (int i = 0; i < count; ++i) {
         char **positionsStr = calloc(1, sizeof(char *));
@@ -666,7 +672,7 @@ void updateBsplineMap(f0r_instance_t instance)
             c = 1;
         }
         step = 1 / (double)c;
-        position curve[c];
+        position *curve = (position *) malloc((c + 1) * sizeof(position));
         while (t <= 1) {
             curve[pn++] = pointOnBezier(t, p);
             t += step;
@@ -697,13 +703,17 @@ void updateBsplineMap(f0r_instance_t instance)
             else
                 inst->bsplineMap[j] = CLAMP0255(ROUND(y * 255));
         }
+
+        free(curve);
     }
+
+    free(points);
 }
 
 /**
  * Updates the color map according to the cubic spline described in the "Curve Point" parameter.
  */
-void updateCsplineMap(f0r_instance_t instance)
+static void updateCsplineMap(f0r_instance_t instance)
 {
     assert(instance);
     curves_instance_t* inst = (curves_instance_t*)instance;
@@ -729,7 +739,7 @@ void updateCsplineMap(f0r_instance_t instance)
     double *points = (double*)calloc(inst->pointNumber * 2, sizeof(double));
     int i = inst->pointNumber * 2;
     //copy point values
-    while(--i > 0)
+    while(--i >= 0)
         points[i] = inst->points[i];
     //sort point values by X component
     for(i = 1; i < inst->pointNumber; i++)
@@ -755,9 +765,10 @@ void updateCsplineMap(f0r_instance_t instance)
     }
     if (inst->drawCurves) {
         int scale = inst->height / 2;
+        free(inst->curveMap);
         inst->curveMap = malloc(scale * sizeof(float));
         for(i = 0; i < scale; i++)
-            inst->curveMap[i] = spline((float)i / scale, points, (size_t)inst->pointNumber, coeffs) * scale;
+            inst->curveMap[i] = spline((double)i / scale, points, (size_t)inst->pointNumber, coeffs) * scale;
     }
 
     free(coeffs);
@@ -771,6 +782,13 @@ void f0r_update(f0r_instance_t instance, double time,
   curves_instance_t* inst = (curves_instance_t*)instance;
   unsigned int len = inst->width * inst->height;
 
+  // test initialization c/b spline
+  double *splinemap = strlen(inst->bspline)>0 ? inst->bsplineMap : inst->csplineMap;
+  if(!splinemap) {
+	memcpy(outframe,inframe,inst->width * inst->height * 4);
+	return;
+  }
+
   unsigned char* dst = (unsigned char*)outframe;
   const unsigned char* src = (unsigned char*)inframe;
 
@@ -782,7 +800,7 @@ void f0r_update(f0r_instance_t instance, double time,
       points = (double*)calloc(inst->pointNumber * 2, sizeof(double));
       i = inst->pointNumber * 2;
       //copy point values
-      while(--i > 0)
+      while(--i >= 0)
           points[i] = inst->points[i];
       //sort point values by X component
       for(i = 1; i < inst->pointNumber; i++)
@@ -911,7 +929,10 @@ void f0r_update(f0r_instance_t instance, double time,
 	int stride = inst->width;
 	dst = (unsigned char*)outframe;
 	float lineWidth = scale / 254.;
-	int cellSize = floor(lineWidth * 32);
+	/* At small valid frame sizes the legacy grid spacing rounded to zero,
+	 * making the modulo tests below trap. */
+	int cellSize = (int)floor(lineWidth * 32);
+	if (cellSize < 1) cellSize = 1;
 	//filling up background and drawing grid
 	for(i = 0; i < scale; i++) {
 	  if (i % cellSize > lineWidth) //point doesn't aly on the grid

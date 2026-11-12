@@ -20,7 +20,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 /**
   This filter implements a standard way of color correction proposed by
@@ -132,7 +132,7 @@ public:
 	                    uint32_t* out,
                         const uint32_t* in)
     {
-        // Rebuild the lookup table in case the prarameters have changed.
+        // Rebuild the lookup table in case the parameters have changed.
         updateLUT();
 
         unsigned char *pixel = (unsigned char *) in;
@@ -211,7 +211,7 @@ private:
 
 
 
-frei0r::construct<SOPSat> plugin("SOP/Sat",
+static frei0r::construct<SOPSat> plugin("SOP/Sat",
                 "Slope/Offset/Power and Saturation color corrections according to the ASC CDL (Color Decision List)",
                 "Simon A. Eugster (Granjow)",
                 0,3,

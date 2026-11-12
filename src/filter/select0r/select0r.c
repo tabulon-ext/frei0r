@@ -49,7 +49,7 @@ typedef struct
 	float z;
 } triplet;
 
-double PI=3.14159265358979;
+static const double PI=3.14159265358979;
 
 //-----------------------------------------------------------
 //inline functions for subspace metrics
@@ -104,7 +104,7 @@ static inline float dist_box_c(float chue, float cy, float cz, float dhue, float
 	float ax,ay,az,r;
 	
 	// wrap hue term -0.5 .. 0.5
-	ax = 0.5 - fabsf(fabsf(hue - chue) - 0.5);
+	ax = 0.5f - fabsf(fabsf(hue - chue) - 0.5f);
 	ax=ax*dhue;
 	ay=fabsf(y-cy)*dy;
 	az=fabsf(z-cz)*dz;
@@ -119,7 +119,7 @@ static inline float dist_eli_c(float chue, float cy, float cz, float dhue, float
 {
 	float ax,ay,az,r;
 	
-	ax = 0.5 - fabsf(fabsf(hue - chue) - 0.5);
+	ax = 0.5f - fabsf(fabsf(hue - chue) - 0.5f);
 	ax=ax*dhue;
 	ay=(y-cy)*dy;
 	az=(z-cz)*dz;
@@ -131,7 +131,7 @@ static inline float dist_oct_c(float chue, float cy, float cz, float dhue, float
 {
 	float ax,ay,az,r;
 	
-	ax = 0.5 - fabsf(fabsf(hue - chue) - 0.5);
+	ax = 0.5f - fabsf(fabsf(hue - chue) - 0.5f);
 	ax=ax*dhue;
 	ay=fabsf(y-cy)*dy;
 	az=fabsf(z-cz)*dz;
@@ -199,7 +199,7 @@ static inline float slope(float a, float is)
 //thr:  0=thresholded  1=linear fat  2=lin norm  3=lin skiny
 //avoids switch () inside inner loop for speed - this means
 //a big, repetitive switch statement outside....
-void sel_rgb(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet n, float slp, int ss, int thr)
+static void sel_rgb(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet n, float slp, int ss, int thr)
 {
 	float kr,kg,kb,dd;
 	int i,s;
@@ -340,7 +340,7 @@ void sel_rgb(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet
 //thr:  0=thresholded  1=linear fat  2=lin norm  3=lin skiny
 //avoids switch () inside inner loop for speed - this means
 //a big, repetitive switch statement outside....
-void sel_abi(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet n, float slp, int ss, int thr)
+static void sel_abi(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet n, float slp, int ss, int thr)
 {
 	float ka,kb,ki,k32,dd;
 	int i,s;
@@ -498,7 +498,7 @@ void sel_abi(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet
 //thr:  0=thresholded  1=linear fat  2=lin norm  3=lin skiny
 //avoids switch () inside inner loop for speed - this means
 //a big, repetitive switch statement outside....
-void sel_hci(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet n, float slp, int ss, int thr)
+static void sel_hci(float_rgba *slika, int w, int h, float_rgba key, triplet d, triplet n, float slp, int ss, int thr)
 {
 	float ka,kb,ki,kh,kc,k32,dd;
 	int i,s;
@@ -670,14 +670,14 @@ typedef struct
 
 //-----------------------------------------------------
 //stretch [0...1] to parameter range [min...max] linear
-float map_value_forward(double v, float min, float max)
+static float map_value_forward(double v, float min, float max)
 {
 	return min+(max-min)*v;
 }
 
 //-----------------------------------------------------
 //collapse from parameter range [min...max] to [0...1] linear
-double map_value_backward(float v, float min, float max)
+static double map_value_backward(float v, float min, float max)
 {
 	return (v-min)/(max-min);
 }
@@ -797,10 +797,6 @@ f0r_instance_t f0r_construct(unsigned int width, unsigned int height)
 //---------------------------------------------------
 void f0r_destruct(f0r_instance_t instance)
 {
-	inst *in;
-	
-	in=(inst*)instance;
-	
 	free(instance);
 }
 
@@ -908,7 +904,7 @@ void f0r_get_param_value(f0r_instance_t instance, f0r_param_t param, int param_i
 		*((double*)param)=map_value_backward(p->sshape, 0.0, 2.9999);
 		break;
 	case 8:
-		*((double*)param)=map_value_backward(p->soft, 0.0, 3.9999);
+		*((double*)param)=map_value_backward(p->soft, 0.0, 4.9999);
 		break;
 	case 9:
 		*((double*)param)=map_value_backward(p->op, 0.0, 4.9999);

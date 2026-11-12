@@ -36,17 +36,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* Type declarations */
-#ifdef _MSC_VER
-#include <basetsd.h>
-typedef UINT8 uint8_t;
-typedef UINT16 uint16_t;
-typedef UINT32 uint32_t;
-#pragma warning( disable: 4799 )
-#else
 #include <stdint.h>
-#endif
 
 /* Intrinsic declarations */
 #if defined(__SSE2__) || defined(__MMX__)
@@ -346,7 +336,7 @@ static void ctmf_helper(
  * odd dimensions. Images of arbitrary size may be processed.
  *
  * To process multi-channel images, you must call this function multiple times,
- * changing the source and destination adresses and steps such that each channel
+ * changing the source and destination addresses and steps such that each channel
  * is processed as an independent single-channel image.
  *
  * Processing images of arbitrary bit depth is not supported.
@@ -375,7 +365,7 @@ static void ctmf_helper(
  *                      For example, a 512 kB L2 cache would have
  *                      memsize=512*1024 initially.
  */
-void ctmf(
+static void ctmf(
         const unsigned char* const src, unsigned char* const dst,
         const int width, const int height,
         const int src_step, const int dst_step,

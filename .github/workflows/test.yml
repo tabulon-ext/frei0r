@@ -1,0 +1,308 @@
+name: 🧪 Test
+
+on:
+  push:
+    paths-ignore:
+      - 'doc/**'
+      - '*.md'
+    branches:
+      - master
+      - release/**
+
+  pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - '*.md'
+    branches:
+      - master
+      - release/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+
+  # reuse:
+  #   name: 🚨 REUSE Compliance
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - uses: fsfe/reuse-action@v1
+
+  windows-build:
+    name: 🪟 win64 build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build using nmake
+        run: |
+          cmake -S . -B build -G "NMake Makefiles" -D BUILD_TESTING=OFF -D WITHOUT_OPENCV=1 -D WITHOUT_CAIRO=1 -D WITHOUT_GAVL=1
+          cmake --build build
+
+  c-lint:
+    name: 🚨 C lint
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-lint')"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: reviewdog/action-cpplint@master
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-check
+          targets: --recursive src
+          level: warning
+          flags: --linelength=120 # Optional
+          filter: "-readability/braces\
+            ,-readability/casting\
+            ,-readability/todo\
+            ,-whitespace/comma\
+            ,-whitespace/braces\
+            ,-whitespace/comments\
+            ,-whitespace/indent\
+            ,-whitespace/newline\
+            ,-whitespace/operators\
+            ,-whitespace/parens\
+            ,-whitespace/tab\
+            ,-whitespace/end_of_line\
+            ,-whitespace/line_length\
+            ,-whitespace/blank_line\
+            ,-whitespace/semicolon\
+            ,-build/include_subdir\
+            ,-build/include_order\
+            ,-build/header_guard\
+            "
+
+  test-suite:
+    name: 🔬 test (${{ matrix.compiler }})
+    needs: [c-lint]
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-test')"
+    strategy:
+      matrix:
+        include:
+          - compiler: clang-14
+            cxx_compiler: clang++-14
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: hendrikmuhs/ccache-action@v1.2
+      - name: Install APT packages
+        run: |
+          sudo apt-get update -qy
+          sudo apt-get install --no-install-recommends -y \
+          "${{ matrix.compiler }}" \
+          cmake ninja-build libfreetype-dev libopencv-dev \
+          libcairo2-dev libgavl-dev libgl-dev libegl-dev
+      - name: Detect new plugins
+        id: detect
+        if: github.event_name == 'pull_request'
+        run: |
+          .github/scripts/detect-new-plugins.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Print CI mode
+        run: |
+          echo "mode=${{ steps.detect.outputs.mode || 'full' }}"
+          echo "reason=${{ steps.detect.outputs.reason || 'push event uses the full suite' }}"
+      - name: ${{ matrix.compiler }} initialize cmake build
+        run: |
+          mkdir -p build && cd build
+          cmake -G "Ninja" \
+            -DCMAKE_C_COMPILER="${{ matrix.compiler }}" \
+            -DCMAKE_CXX_COMPILER="${{ matrix.cxx_compiler }}" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            ..
+      - name: ${{ matrix.compiler }} run ninja build
+        if: github.event_name != 'pull_request' || steps.detect.outputs.mode != 'targeted'
+        run: |
+          cd build && ninja
+      - name: ${{ matrix.compiler }} build new plugins
+        if: github.event_name == 'pull_request' && steps.detect.outputs.mode == 'targeted'
+        run: |
+          cd build
+          cmake --build . --target ${{ steps.detect.outputs.targets }}
+      - name: ${{ matrix.compiler }} analyze plugins
+        if: github.event_name != 'pull_request' || steps.detect.outputs.mode != 'targeted'
+        run: |
+          ctest --test-dir build --output-on-failure --parallel 4
+      - name: ${{ matrix.compiler }} analyze new plugins
+        if: github.event_name == 'pull_request' && steps.detect.outputs.mode == 'targeted'
+        run: |
+          for plugin in ${{ steps.detect.outputs.plugin_paths }}; do
+            build/test/frei0r-run -d -p "$plugin"
+          done
+
+  test-i386:
+    name: 🔬 i386 C/C++ contracts (GCC -m32)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: i386
+      - name: Install multilib build tools
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -qy
+          sudo apt-get install --no-install-recommends -y \
+            gcc-multilib g++-multilib cmake ninja-build pkg-config file \
+            libgl-dev:i386 libegl-dev:i386
+      - name: Configure native 32-bit build
+        env:
+          PKG_CONFIG_LIBDIR: /usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig
+        run: |
+          cmake -S . -B build-i386 -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_FLAGS=-m32 \
+            -DCMAKE_CXX_FLAGS=-m32 \
+            -DBUILD_TESTING=ON \
+            -DWITHOUT_OPENCV=ON \
+            -DWITHOUT_CAIRO=ON \
+            -DWITHOUT_GAVL=ON
+      - name: Build C/C++ contracts
+        run: |
+          # These targets do not link the optional graphics libraries.
+          cmake --build build-i386 --parallel 4 --target \
+            aech0r-contract harris0r-contract slitscan0r-contract \
+            motiondiff0r-alloc motiondiff0r-memory-contract motiondiff0r-small-budget
+      - name: Verify 32-bit binaries
+        run: |
+          for binary in \
+            aech0r-contract harris0r-contract slitscan0r-contract \
+            motiondiff0r-alloc motiondiff0r-memory-contract motiondiff0r-small-budget; do
+            file "build-i386/test/$binary" | grep 'ELF 32-bit.*Intel 80386'
+          done
+      - name: Run native i386 contracts
+        run: |
+          ctest --test-dir build-i386 --output-on-failure --no-tests=error -R \
+            '^(aech0r-contract|harris0r-contract|slitscan0r-contract|motiondiff0r-(alloc|memory-contract|small-budget))$'
+
+  test-s390x:
+    name: 🔬 s390x big-endian contracts (QEMU)
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install s390x build tools and libraries
+        run: |
+          dpkg --add-architecture s390x
+          apt-get update -qy
+          apt-get install --no-install-recommends -y \
+            cmake ninja-build pkg-config ccache qemu-user \
+            gcc-s390x-linux-gnu g++-s390x-linux-gnu libc6-dev-s390x-cross \
+            libcairo2-dev:s390x libfreetype-dev:s390x libgl-dev:s390x libegl-dev:s390x
+      - name: Configure s390x build
+        env:
+          PKG_CONFIG_LIBDIR: /usr/lib/s390x-linux-gnu/pkgconfig:/usr/share/pkgconfig
+        run: |
+          cmake -S . -B build-s390x -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/s390x-linux-gnu.cmake \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DWITHOUT_OPENCV=ON -DWITHOUT_GAVL=ON
+      - name: Build big-endian regressions
+        run: |
+          cmake --build build-s390x --parallel 4 --target \
+            bundle-api-contract cairo-input-contract invert0r
+      - name: Run big-endian regressions under QEMU
+        run: |
+          ctest --test-dir build-s390x --output-on-failure --no-tests=error -R \
+            '^(bundle-api-contract|invert0r|cairo(gradient|affineblend|blend)(-input-contract)?)$'
+
+  bundle-native:
+    name: 📦 native bundle contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qy
+          sudo apt-get install --no-install-recommends -y \
+            cmake ninja-build pkg-config libgl-dev libegl1-mesa-dev
+      - name: Configure core bundle
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DFREI0R_BUILD_BUNDLE=ON \
+            -DBUILD_TESTING=ON \
+            -DWITHOUT_OPENCV=ON \
+            -DWITHOUT_CAIRO=ON \
+            -DWITHOUT_GAVL=ON
+      - name: Build core bundle
+        run: cmake --build build --parallel 4
+      - name: Run native bundle contracts
+        run: |
+          ctest --test-dir build --output-on-failure --parallel 4 -R \
+            '^(frei0r-bundle-symbol-collisions|bundle-native-consumer|bundle-native-consumer-gc|bundle-registry-contract|frei0r-bundle-shared-exports|bundle-install-consumers)$'
+
+  bundle-wasi:
+    name: 🌐 WASI bundle runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - id: wasi-sdk
+        uses: bytecodealliance/setup-wasi-sdk-action@v1
+        with:
+          version: '29'
+          install-path: ${{ runner.temp }}/wasi-sdk
+      - name: Configure core bundle
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${{ steps.wasi-sdk.outputs.wasi-sdk-path }}/share/cmake/wasi-sdk-p1.cmake" \
+            -DFREI0R_BUILD_BUNDLE=ON \
+            -DBUILD_TESTING=ON \
+            -DWITHOUT_OPENCV=ON \
+            -DWITHOUT_CAIRO=ON \
+            -DWITHOUT_GAVL=ON
+      - name: Build and run WASI bundle contracts
+        run: |
+          cmake --build build --parallel 4 --target \
+            bundle-registry-wasi bundle-wasi-consumer
+          ctest --test-dir build --output-on-failure -R \
+            '^(bundle-registry-wasi|bundle-wasi-consumer)$'
+
+  bundle-emscripten:
+    name: 🌐 Emscripten bundle runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Set writable Emscripten cache
+        run: echo "EM_CACHE=$RUNNER_TEMP/emscripten-cache" >> "$GITHUB_ENV"
+      - uses: emscripten-core/setup-emsdk@v15
+        with:
+          version: 4.0.1
+          actions-cache-folder: emsdk-4.0.1
+      - name: Configure core bundle
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
+            -DFREI0R_BUILD_BUNDLE=ON \
+            -DBUILD_TESTING=ON \
+            -DWITHOUT_OPENCV=ON \
+            -DWITHOUT_CAIRO=ON \
+            -DWITHOUT_GAVL=ON
+      - name: Build and run Emscripten bundle contracts
+        run: |
+          cmake --build build --parallel 4 --target \
+            bundle-registry-emscripten bundle-emscripten-consumer
+          ctest --test-dir build --output-on-failure -R \
+            '^(bundle-registry-emscripten|bundle-emscripten-consumer)$'

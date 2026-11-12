@@ -4,7 +4,7 @@
  *
  * 2002/2/9 
  *   Original code copied same frame twice, and did not use memcpy().
- *   I modifed those point.
+ *   I modified those point.
  *   -Kentarou Fukuchi
  *
  * 2009/8/26
@@ -40,6 +40,8 @@
 #define PLANES 32
 
 // freej compat facilitator
+namespace {
+
 typedef struct {
   int16_t w;
   int16_t h;
@@ -99,7 +101,7 @@ Nervous::Nervous(int wdt, int hgt) {
 }
 
 Nervous::~Nervous() {
-  if(buffer) free(buffer);
+  free(buffer);
 }
 
 void Nervous::_init(int wdt, int hgt) {
@@ -144,7 +146,9 @@ void Nervous::update(double time,
 
 
 
-frei0r::construct<Nervous> plugin("Nervous",
+} // namespace
+
+static frei0r::construct<Nervous> plugin("Nervous",
 				"flushes frames in time in a nervous way",
 				"Tannenbaum, Kentaro, Jaromil",
 				3,1);

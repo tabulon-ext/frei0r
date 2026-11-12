@@ -19,7 +19,7 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 #define NBYTES 4
 #define ALPHA 3
@@ -71,9 +71,8 @@ public:
 };
 
 
-frei0r::construct<subtract> plugin("subtract",
+static frei0r::construct<subtract> plugin("subtract",
                                    "Perform an RGB[A] subtract operation of the pixel source input2 from input1.",
                                    "Jean-Sebastien Senecal",
                                    0,2,
                                    F0R_COLOR_MODEL_RGBA8888);
-

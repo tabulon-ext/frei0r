@@ -18,7 +18,7 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 #include <stdlib.h>
 
 class edgeglow : public frei0r::filter
@@ -181,9 +181,8 @@ public:
 };
 
 
-frei0r::construct<edgeglow> plugin("Edgeglow",
+static frei0r::construct<edgeglow> plugin("Edgeglow",
                                 "Edgeglow filter",
                                 "Salsaman",
                                 0,3,
                                 F0R_COLOR_MODEL_RGBA8888);
-

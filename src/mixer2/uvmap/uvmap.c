@@ -75,12 +75,6 @@ void f0r_get_param_value(f0r_instance_t instance,
 			 f0r_param_t param, int param_index)
 { /* no params */ }
 
-#if defined(_MSC_VER)
-__inline const long int lrintf(float x){
-	return (long int)(x+0.5);
-}
-#endif /* _MSC_VER */
-
 void f0r_update2(f0r_instance_t instance,
 		 double time,
 		 const uint32_t* inframe1,
@@ -115,8 +109,8 @@ void f0r_update2(f0r_instance_t instance,
 			fy = ((float)tmpc[1]) / 255.0;
 			fy = 1.0 - fy;
 
-			px = lrintf( w * fx );
-			py = lrintf( h * fy );
+			px = lrintf( (w - 1) * fx );
+			py = lrintf( (h - 1) * fy );
 			if ( tmpc[2] > 128 ) {
 				*dst++ = src[px+w*py];
 			} else {

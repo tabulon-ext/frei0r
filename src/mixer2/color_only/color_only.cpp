@@ -19,8 +19,8 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
-#include "frei0r_colorspace.h"
+#include "frei0r/math.h"
+#include "frei0r/colorspace.h"
 
 #define NBYTES 4
 
@@ -64,7 +64,7 @@ public:
         r1 = r2;
         g1 = g2;
 
-        /*  set the dstination  */
+        /*  set the destination  */
         hsl_to_rgb_int(&r1, &g1, &b1);
 
         dst[0] = r1;
@@ -83,9 +83,8 @@ public:
 };
 
 
-frei0r::construct<color_only> plugin("color_only",
+static frei0r::construct<color_only> plugin("color_only",
                                      "Perform a conversion to color only of the source input1 using the hue and saturation values of input2.",
                                      "Jean-Sebastien Senecal",
                                      0,2,
                                      F0R_COLOR_MODEL_RGBA8888);
-

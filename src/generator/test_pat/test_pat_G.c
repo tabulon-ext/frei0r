@@ -46,10 +46,11 @@ DV legality etc.
 #include <math.h>
 
 #include "frei0r.h"
+#include "frei0r/math.h"
 
 
 //----------------------------------------------------------
-void draw_rectangle(unsigned char *sl, int w, int h, int x, int y, int wr, int hr, unsigned char gray)
+static void draw_rectangle(unsigned char *sl, int w, int h, int x, int y, int wr, int hr, unsigned char gray)
 {
 int i,j;
 int zx,kx,zy,ky;
@@ -66,7 +67,7 @@ for (i=zy;i<ky;i++)
 
 //-----------------------------------------------------------
 //pocasna za velike kroge.....
-void draw_circle(unsigned char *sl, int w, int h, float ar, int x, int y, int rn, int rz, unsigned char gray)
+static void draw_circle(unsigned char *sl, int w, int h, float ar, int x, int y, int rn, int rz, unsigned char gray)
 {
 int i,j;
 int zx,kx,zy,ky;
@@ -89,7 +90,7 @@ for (i=zy;i<ky;i++)
 
 //-----------------------------------------------------------
 //dir:   1=up   2=right   3=down   4=left
-void draw_wedge(unsigned char *sl, int w, int h, int x, int y, int size, int dir, unsigned char gray)
+static void draw_wedge(unsigned char *sl, int w, int h, int x, int y, int size, int dir, unsigned char gray)
 {
 int i,j,ii,jj;
 
@@ -149,7 +150,7 @@ switch (dir)
 //size = size of squares (pixels)
 //ar = pixel aspect ratio
 //rim : 0=uniform	1=gray rim
-void sah1(unsigned char *sl, int w, int h, int size, float ar, int rim)
+static void sah1(unsigned char *sl, int w, int h, int size, float ar, int rim)
 {
 int i,j,kx,ky,z,pv,ps,zv,zs;
 unsigned char black,gray1,gray2,white;
@@ -158,6 +159,8 @@ int ox,oy;
 if (size<1) size=1;
 kx=size; ky=size;
 kx=kx/ar;		//kao aspect!=1  (anamorph)
+kx = MAX(kx, 1);
+ky = MAX(ky, 1);
 
 black=0;
 white=255;
@@ -205,7 +208,7 @@ else
 //-------------------------------------------------
 //draws horizontal lines
 //clr=clear background
-void hlines(unsigned char *sl, int w, int h, int size1, int size2, float ar, int clr)
+static void hlines(unsigned char *sl, int w, int h, int size1, int size2, float ar, int clr)
 {
 int i,iz;
 unsigned char black,white;
@@ -226,7 +229,7 @@ for (i=iz;i<h;i=i+size1)	//hor. lines
 //-------------------------------------------------
 //draws vertical lines
 //clr=clear background
-void vlines(unsigned char *sl, int w, int h, int size1, int size2, float ar, int clr)
+static void vlines(unsigned char *sl, int w, int h, int size1, int size2, float ar, int clr)
 {
 int i,iz;
 unsigned char black,white;
@@ -248,7 +251,7 @@ for (i=iz;i<w;i=i+size1)	//vert. lines
 
 //-------------------------------------------------
 //draws a rectangular grid pattern
-void mreza(unsigned char *sl, int w, int h, int size1, int size2, float ar)
+static void mreza(unsigned char *sl, int w, int h, int size1, int size2, float ar)
 {
 
 if (ar==0) ar=1.0;
@@ -259,7 +262,7 @@ vlines(sl, w, h, size1/ar, size2, ar, 0);
 
 //-------------------------------------------------
 //draws points (small squares really)
-void pike(unsigned char *sl, int w, int h, int size1, int size2, float ar)
+static void pike(unsigned char *sl, int w, int h, int size1, int size2, float ar)
 {
 int i,j,iz,jz;
 int black,white;
@@ -284,7 +287,7 @@ for (i=iz;i<h;i=i+size1)
 
 //-----------------------------------------------------------
 //draws a bullseye pattern
-void tarca(unsigned char *sl, int w, int h, int size1, int size2, float ar)
+static void tarca(unsigned char *sl, int w, int h, int size1, int size2, float ar)
 {
 unsigned char black,white;
 int i;
@@ -303,7 +306,7 @@ for (i=size1;i<(h/2);i=i+size1)
 
 //---------------------------------------------------------
 //draws image edge markers
-void robovi(unsigned char *sl, int w, int h)
+static void robovi(unsigned char *sl, int w, int h)
 {
 int i,j,l;
 unsigned char black,white;
@@ -343,7 +346,7 @@ for (i=0;i<50;i++)
 
 //----------------------------------------------------------
 //draws centered pixel rulers
-void rulers(unsigned char *sl, int w, int h, unsigned char *a)
+static void rulers(unsigned char *sl, int w, int h, unsigned char *a)
 {
 int i;
 unsigned char black,white,tr;
@@ -422,9 +425,9 @@ for (i=h/2+100; i<h; i=i+100)
 }
 
 //----------------------------------------------------------
-//draws a transparent mesurement grid
+//draws a transparent measurement grid
 //*a = alpha channel
-void grid(unsigned char *sl, int w, int h, unsigned char *a)
+static void grid(unsigned char *sl, int w, int h, unsigned char *a)
 {
 int i,j;
 unsigned char black,white,tr;
@@ -473,7 +476,7 @@ for (i=0;i<h;i=i+100)
 //----------------------------------------------------
 //marks the four quadrants with different colors
 //COLOR MODEL DEPENDENT!
-void kvadranti(uint32_t *sl, int w, int h, int neg)
+static void kvadranti(uint32_t *sl, int w, int h, int neg)
 {
 uint32_t c1,c2,c3,c4;
 int i,j;
@@ -512,7 +515,7 @@ for (i=h/2;i<h;i++)
 //intermediate image into the required color model
 //alpha = 0  (transparent!)
 //COLOR MODEL DEPENDENT!
-void make_char2color_table(uint32_t *c2c, int neg)
+static void make_char2color_table(uint32_t *c2c, int neg)
 {
 unsigned int i;
 
@@ -527,14 +530,14 @@ else
 
 //-----------------------------------------------------
 //stretch [0...1] to parameter range [min...max] linear
-float map_value_forward(double v, float min, float max)
+static float map_value_forward(double v, float min, float max)
 {
 return min+(max-min)*v;
 }
 
 //-----------------------------------------------------
 //collapse from parameter range [min...max] to [0...1] linear
-double map_value_backward(float v, float min, float max)
+static double map_value_backward(float v, float min, float max)
 {
 return (v-min)/(max-min);
 }
@@ -542,7 +545,7 @@ return (v-min)/(max-min);
 //-----------------------------------------------------
 //stretch [0...1] to parameter range [min...max] logarithmic
 //min and max must be positive!
-float map_value_forward_log(double v, float min, float max)
+static float map_value_forward_log(double v, float min, float max)
 {
 float sr,k;
 
@@ -554,7 +557,7 @@ return sr*expf(k*(v-0.5));
 //-----------------------------------------------------
 //collapse from parameter range [min...max] to [0...1] logarithmic
 //min and max must be positive!
-double map_value_backward_log(float v, float min, float max)
+static double map_value_backward_log(float v, float min, float max)
 {
 float sr,k;
 

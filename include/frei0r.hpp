@@ -7,6 +7,18 @@ extern "C"
 #include <vector>
 #include <string>
 #include <iostream>
+#include <new>
+
+#ifdef FREI0R_BUNDLE_PLUGIN_TOKEN
+/*
+ * The legacy C++ convenience API is header-only and carries registration
+ * state.  Give its namespace and registration object a plugin-specific name
+ * in a bundle so inline member functions cannot be coalesced across plugin
+ * objects and accidentally address another plugin's state.
+ */
+#define frei0r F0R_BUNDLE_ENTRY(frei0r)
+#define plugin F0R_BUNDLE_ENTRY(plugin)
+#endif
 
 
 namespace frei0r
@@ -51,6 +63,9 @@ namespace frei0r
     }
     
     virtual unsigned int effect_type()=0;
+
+    // Plugins with fallible constructor resources can reject the instance.
+    virtual bool is_valid() const { return true; }
     
     void register_param(f0r_param_color& p_loc,
 			const std::string& name,
@@ -91,17 +106,20 @@ namespace frei0r
       param_ptrs.push_back(&p_loc);
       s_params.push_back(param_info(name,desc,F0R_PARAM_STRING));
     }
-    
-    
+
+
     void get_param_value(f0r_param_t param, int param_index)
     {
+      if (!param || param_index < 0 || param_index >= (int)param_ptrs.size())
+        return;
+
       void* ptr = param_ptrs[param_index];
-      
+
       switch (s_params[param_index].m_type)
 	{
 	case F0R_PARAM_BOOL :
 	  *static_cast<f0r_param_bool*>(param)
-	    = *static_cast<f0r_param_bool*>(ptr) > 0.5 ? 1.0 : 0.0;
+	    = *static_cast<bool*>(ptr) ? 1.0 : 0.0;
 	  break;
 	case F0R_PARAM_DOUBLE:
 	  *static_cast<f0r_param_double*>(param)
@@ -125,8 +143,11 @@ namespace frei0r
 
     void set_param_value(f0r_param_t param, int param_index)
     {
+      if (!param || param_index < 0 || param_index >= (int)param_ptrs.size())
+        return;
+
       void* ptr = param_ptrs[param_index];
-      
+
       switch (s_params[param_index].m_type)
 	{
 	case F0R_PARAM_BOOL :
@@ -146,13 +167,16 @@ namespace frei0r
 	    =  *static_cast<f0r_param_position*>(param);
 	    break;
 	case F0R_PARAM_STRING:
-	    *static_cast<std::string*>(ptr)
-	      = *static_cast<f0r_param_string*>(param);
+	{
+	    f0r_param_string str = *static_cast<f0r_param_string*>(param);
+	    if (str)
+	        *static_cast<std::string*>(ptr) = str;
 	    break;
 	}
-      
+	}
+
     }
-      
+
     virtual void update(double time,
               uint32_t* out,
               const uint32_t* in1,
@@ -265,7 +289,21 @@ namespace frei0r
   private:
     static fx* build(unsigned int width, unsigned int height)
     {
-      return new T(width,height);
+      // Constructors re-register metadata; restore it if construction fails.
+      std::vector<param_info> previous_params;
+      previous_params.swap(s_params);
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)
+      try {
+#endif
+        T* instance = new (std::nothrow) T(width,height);
+        if (instance && instance->is_valid()) return instance;
+        delete instance;
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)
+      } catch (const std::bad_alloc&) {
+      }
+#endif
+      s_params.swap(previous_params);
+      return 0;
     }
   };
 }
@@ -297,6 +335,9 @@ void f0r_get_plugin_info(f0r_plugin_info_t* info)
 
 void f0r_get_param_info(f0r_param_info_t* info, int param_index)
 {
+  if (!info || param_index < 0 || param_index >= (int)frei0r::s_params.size())
+    return;
+
   info->name=frei0r::s_params[param_index].m_name.c_str();
   info->type=frei0r::s_params[param_index].m_type;
   info->explanation=frei0r::s_params[param_index].m_desc.c_str();
@@ -305,6 +346,7 @@ void f0r_get_param_info(f0r_param_info_t* info, int param_index)
 f0r_instance_t f0r_construct(unsigned int width, unsigned int height)
 {
   frei0r::fx* nfx = frei0r::s_build(width, height);
+  if (!nfx) return 0;
   nfx->width=width;
   nfx->height=height;
   nfx->size=width*height;
@@ -316,16 +358,18 @@ void f0r_destruct(f0r_instance_t instance)
   delete static_cast<frei0r::fx*>(instance);
 }
 
-void f0r_set_param_value(f0r_instance_t instance, 
+void f0r_set_param_value(f0r_instance_t instance,
 			 f0r_param_t param, int param_index)
 {
-  static_cast<frei0r::fx*>(instance)->set_param_value(param, param_index);
+  if (instance)
+    static_cast<frei0r::fx*>(instance)->set_param_value(param, param_index);
 }
 
 void f0r_get_param_value(f0r_instance_t instance,
 			 f0r_param_t param, int param_index)
 {
-  static_cast<frei0r::fx*>(instance)->get_param_value(param, param_index);
+  if (instance)
+    static_cast<frei0r::fx*>(instance)->get_param_value(param, param_index);
 }
 
 void f0r_update2(f0r_instance_t instance, double time,
@@ -341,10 +385,9 @@ void f0r_update2(f0r_instance_t instance, double time,
                                              inframe3);
 }
 
-// compability for frei0r 1.0 
+// compatibility for frei0r 1.0 
 void f0r_update(f0r_instance_t instance, 
 		double time, const uint32_t* inframe, uint32_t* outframe)
 {
   f0r_update2(instance, time, inframe, 0, 0, outframe);
 }
-

@@ -32,8 +32,8 @@
 /**
 This is a sample filter for easy copy/pasting.
 
-The CMakeLists.txt needs to be adjusted as well (both in this directory and in the parent directory).
-Also, don't forget src/Makefile.am.
+The CMakeLists.txt needs to be adjusted as well, both in this directory and in
+the parent filter directory.
 */
 
 class Tutorial : public frei0r::filter
@@ -57,7 +57,7 @@ public:
         // http://stackoverflow.com/questions/381621/using-arrays-or-stdvectors-in-c-whats-the-performance-gap
         // Using std::numeric_limits just for fun here.
         lookupTable = std::vector<uint8_t>(std::numeric_limits<uint8_t>::max()+1, 0);
-        std::cout << lookupTable.size() << " elements in the lookup table." << std::endl;
+        // std::cerr << lookupTable.size() << " elements in the lookup table." << std::endl;
 
         // Calculate the entries in the lookup table. Applied on the R value in this example.
         // If the R value of an input pixel is r, then the output R value will be mapped to lookupTable[r].
@@ -108,7 +108,7 @@ public:
                         const uint32_t* in)
     {
         // Just copy input to output.
-        // This is useful if ony few changes are made to the output.
+        // This is useful if only few changes are made to the output.
         // If the whole image is processed, this makes no sense!
         std::copy(in, in + width*height, out);
 
@@ -125,7 +125,7 @@ public:
 
         // This parameter allows one to do simple benchmarking: Rendering a
         // video with uint8_t pointers and with uint32_t pointers.
-        // (Don't forget to substract the rendering time without this effect applied to avoid counting
+        // (Don't forget to subtract the rendering time without this effect applied to avoid counting
         // encoding and decoding as well!)
         if (m_pointerMethod == 0) {
             uint8_t *in_pointer = (uint8_t *) in;
@@ -173,7 +173,7 @@ private:
 
 
 
-frei0r::construct<Tutorial> plugin("Tutorial filter",
+static frei0r::construct<Tutorial> plugin("Tutorial filter",
                 "This is an example filter, kind of a quick howto showing how to add a frei0r filter.",
                 "Your Name",
                 0,2,

@@ -23,7 +23,7 @@
 #include <stdio.h>
 
 #include "frei0r.h"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 typedef struct colordistance_instance
 {
@@ -109,12 +109,6 @@ void f0r_get_param_value(f0r_instance_t instance,
 
 }
 
-#if defined(_MSC_VER)
-__inline const int rint(float x){
-	return (int)(x+0.5);
-}
-#endif
-
 void f0r_update(f0r_instance_t instance, double time,
 		const uint32_t* inframe, uint32_t* outframe)
 {
@@ -131,16 +125,17 @@ void f0r_update(f0r_instance_t instance, double time,
 	float b1 = inst->color.b * 255.0;
 	float r2, g2, b2;
 	int l;
+	/* Scale factor to normalize distance to 0-255 range:
+	   0.705724361914764 ≈ 255.0 / sqrt(3 * 255^2) = 255.0 / (255.0 * sqrt(3)) */
+	const float SCALE_FACTOR = 0.705724361914764;
 	while (len--) {
 		r2 = *src++;
 		g2 = *src++;
 		b2 = *src++;
-		l = (int)rint( sqrtf( powf( r1 - r2, 2 ) + powf( g1 - g2, 2 ) + powf( b1 - b2, 2 ) ) * 0.705724361914764  );
-		/* Hint 0.35320727852735 == 255.0 / sqrt( (255)**2 + (255)**2 + (255)*2 )*/
-		if ( r1 < 0 || r1 > 255 ||  g1 < 0 || g1 > 255 ||  b1 < 0 || b1	> 255 || r2 < 0 || r2 > 255 ||  g2 < 0 || g2 > 255 || b2 < 0 || b2 > 255 ) {
-			printf ("%f %f %f\n", r2, g2, b2 );
-		}
+		l = (int)rint( sqrtf( powf( r1 - r2, 2 ) + powf( g1 - g2, 2 ) + powf( b1 - b2, 2 ) ) * SCALE_FACTOR );
 
+		// Clamp result to valid range
+		l = CLAMP(l, 0, 255);
 
 		*dst++ = (unsigned char) (l);
 		*dst++ = (unsigned char) (l);

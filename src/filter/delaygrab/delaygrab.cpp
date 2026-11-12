@@ -43,6 +43,8 @@
 #define MODES 4
 
 // freej compat facilitator
+namespace {
+
 typedef struct {
   int16_t x; ///< x axis position coordinate
   int16_t y; ///< y axis position coordinate
@@ -131,7 +133,7 @@ DelayGrab::DelayGrab(int wdt, int hgt) {
 }
 
 DelayGrab::~DelayGrab() {
-  if(delaymap) free(delaymap);
+  free(delaymap);
   free(imagequeue);
 }
 
@@ -271,7 +273,7 @@ void DelayGrab::set_blocksize(int bs) {
   delaymapheight = (geo.h)/blocksize;
   delaymapsize = delaymapheight*delaymapwidth;
 
-  if(delaymap) { free(delaymap); delaymap = NULL; }
+  free(delaymap);
   delaymap = malloc(delaymapsize*4);
 
   createDelaymap(current_mode);
@@ -287,7 +289,9 @@ int DelayGrab::isqrt(unsigned int x) {
 
 
 
-frei0r::construct<DelayGrab> plugin("Delaygrab",
+} // namespace
+
+static frei0r::construct<DelayGrab> plugin("Delaygrab",
 				  "delayed frame blitting mapped on a time bitmap",
 				  "Bill Spinhover, Andreas Schiffler, Jaromil",
 				  3,1);

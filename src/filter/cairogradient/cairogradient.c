@@ -27,7 +27,7 @@
 #include <math.h>
 
 #include "frei0r.h"
-#include "frei0r_cairo.h"
+#include "frei0r/cairo.h"
 
 typedef struct cairo_gradient_instance
 {
@@ -258,7 +258,7 @@ void f0r_get_param_value(f0r_instance_t instance, f0r_param_t param, int param_i
 	}
 }
 
-void draw_gradient(cairo_gradient_instance_t* inst, unsigned char* dst, const unsigned char* src, double time)
+static void draw_gradient(cairo_gradient_instance_t* inst, unsigned char* dst, const unsigned char* src, double time)
 {
   int stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32,  inst->width);
   cairo_surface_t *surface = cairo_image_surface_create_for_data (dst, CAIRO_FORMAT_ARGB32, inst->width, inst->height, stride);
@@ -330,11 +330,19 @@ void f0r_update(f0r_instance_t instance, double time,
   cairo_gradient_instance_t* inst = (cairo_gradient_instance_t*)instance;
 
   unsigned char* dst = (unsigned char*)outframe;
-  unsigned char* src = (unsigned char*)inframe;
   int pixels = inst->width * inst->height;
+  unsigned char* src = malloc((size_t)pixels * sizeof(uint32_t));
+  if (!src) {
+    memcpy(outframe, inframe, (size_t)pixels * sizeof(uint32_t));
+    return;
+  }
 
-  frei0r_cairo_premultiply_rgba (src, pixels, -1);
+  frei0r_cairo_premultiply_rgba2((const unsigned char*)inframe, src, pixels, -1);
+
+  // Clear the destination
+  memset(dst, 0, pixels * sizeof(uint32_t));
+
   draw_gradient(inst, dst, src, time);
   frei0r_cairo_unpremultiply_rgba (dst, pixels);
+  free(src);
 }
-

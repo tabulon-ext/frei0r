@@ -18,7 +18,7 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 #include <algorithm>
 
@@ -65,9 +65,8 @@ public:
 };
 
 
-frei0r::construct<alphain> plugin("alphain",
+static frei0r::construct<alphain> plugin("alphain",
                                   "the alpha IN operation",
                                   "Jean-Sebastien Senecal",
                                   0,2,
                                   F0R_COLOR_MODEL_RGBA8888);
-

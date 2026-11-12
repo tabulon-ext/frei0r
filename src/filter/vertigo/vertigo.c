@@ -39,6 +39,7 @@ typedef struct vertigo_instance
   uint32_t *current_buffer, *alt_buffer;
   
   uint32_t *buffer;
+  uint8_t is_buffer_init;
   int dx, dy;
   int sx, sy;
   
@@ -121,11 +122,7 @@ f0r_instance_t f0r_construct(unsigned int width, unsigned int height)
 void f0r_destruct(f0r_instance_t instance)
 {
   vertigo_instance_t* inst = (vertigo_instance_t*)instance;
-  if(inst->buffer!=NULL) 
-  {
-    free(inst->buffer); 
-    inst->buffer = NULL; 
-  }
+  free(inst->buffer); 
   free(instance);
 }
 
@@ -190,8 +187,15 @@ void f0r_update(f0r_instance_t instance, double time,
 
   double vx, vy;
   double dizz;
-  
+
   dizz = sin(inst->phase) * 10 + sin(inst->phase*1.9+5) * 5;
+
+  if (!inst->is_buffer_init)
+  {
+    memcpy(inst->buffer, inframe, inst->pixels * sizeof(uint32_t));
+    memcpy(&inst->buffer[inst->pixels], inframe, inst->pixels * sizeof(uint32_t));
+    inst->is_buffer_init = 1;
+  }
 
   if(w > h) 
   {
@@ -239,7 +243,7 @@ void f0r_update(f0r_instance_t instance, double time,
     {
       i = (oy>>16)*w + (ox>>16);
       if(i<0) i = 0;
-      if(i>=inst->pixels) i = inst->pixels;
+      if(i>=inst->pixels) i = inst->pixels - 1;
       v = inst->current_buffer[i] & 0xfcfcff;
       alpha = *src & 0xff000000;
       v = (v * 3) + ((*src++) & 0xfcfcff);

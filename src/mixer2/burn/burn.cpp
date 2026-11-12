@@ -19,7 +19,7 @@
  */
 
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 #define NBYTES 4
 #define ALPHA 3
@@ -51,7 +51,7 @@ public:
             
     uint32_t b;
   
-    /* FIXME: Is the burn effect supposed to be dependant on the sign of this
+    /* FIXME: Is the burn effect supposed to be dependent on the sign of this
      * temporary variable? */
     int tmp;
   
@@ -76,9 +76,8 @@ public:
 };
 
 
-frei0r::construct<burn> plugin("burn",
-                               "Perform an RGB[A] dodge operation between the pixel sources, using the generalised algorithm:\n"
-							   "D = saturation of 255 or depletion of 0, of ((255 - A) * 256) / (B + 1)",
+static frei0r::construct<burn> plugin("burn",
+                               "Perform an RGB[A] dodge operation between the pixel sources, using the generalised algorithm: D = saturation of 255 or depletion of 0, of ((255 - A) * 256) / (B + 1)",
                                "Jean-Sebastien Senecal",
                                0,2,
                                F0R_COLOR_MODEL_RGBA8888);

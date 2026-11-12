@@ -37,7 +37,7 @@ typedef struct hueshift0r_instance
 } hueshift0r_instance_t;
 
 /* Updates the shift matrix. */
-void update_mat(hueshift0r_instance_t *inst)
+static void update_mat(hueshift0r_instance_t *inst)
 {
   identmat((float*)inst->mat);
   huerotatemat(inst->mat, (float)inst->hueshift);
@@ -101,7 +101,7 @@ void f0r_set_param_value(f0r_instance_t instance,
   {
     int val;
   case 0:
-    /* constrast */
+    /* contrast */
     val = (int) (*((double*)param) * 360.0); /* remap to [0, 360] */
     if (val != inst->hueshift)
     {
@@ -136,5 +136,4 @@ void f0r_update(f0r_instance_t instance, double time,
   memcpy(outframe, inframe, len*sizeof(uint32_t));
   applymatrix((unsigned long*)outframe, inst->mat, len);
 }
-
 

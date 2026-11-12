@@ -24,6 +24,10 @@
  *
  */
 
+#if defined(_MSC_VER)
+#define _USE_MATH_DEFINES
+#endif /* _MSC_VER */
+#include <cmath>
 
 #include "frei0r.hpp"
 
@@ -31,10 +35,6 @@
 #include <string.h>
 
 #include <algorithm>
-#if defined(_MSC_VER)
-#define _USE_MATH_DEFINES
-#endif /* _MSC_VER */
-#include <cmath>
 
 #include <time.h>
 #include <inttypes.h>
@@ -45,6 +45,8 @@
 #define NB_BLOB 16 // 25
 
 #define PRIMES 11
+
+namespace {
 
 class Partik0l: public frei0r::source {
 public:
@@ -182,6 +184,12 @@ void Partik0l::update(double time,
 
   memset(out,0,size);
 
+  /* The legacy blob rasterizer assumes a 16-pixel footprint.  A source is
+   * still valid at 8x8, where an empty frame is preferable to writing past
+   * the caller's output buffer. */
+  if (w < blob_size || h < blob_size)
+    return;
+
   blossom(out);
 
 }
@@ -210,7 +218,7 @@ void Partik0l::blossom(uint32_t* out) {
   double zx, zy;
 
   /* here place a formula that draws on the screen
-     the surface being drawed at this point is always blank */
+     the surface being drawn at this point is always blank */
   for( a=0.0 ; a<pi2; a+=0.005 ) {
     zx = blossom_m*a;
     zy = blossom_n*a;
@@ -367,7 +375,9 @@ bool Partik0l::keypress(int key) {
   return(true);
 }
 */  
-frei0r::construct<Partik0l> plugin("Partik0l",
+} // namespace
+
+static frei0r::construct<Partik0l> plugin("Partik0l",
 				 "Particles generated on prime number sinusoidal blossoming",
 				 "Jaromil",
 				 0,3);

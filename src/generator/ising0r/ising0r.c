@@ -72,6 +72,10 @@ typedef struct ising0r_instance
 
 int f0r_init()
 {
+  /* The generator state is file-local, so reset it when a host initializes
+   * this descriptor.  This gives fresh plugin lifecycles repeatable output
+   * without changing the sequence produced by an individual instance. */
+  rnd_lcg1_xn = 1;
   return 1;
 }
 
@@ -83,7 +87,7 @@ void f0r_get_plugin_info(f0r_plugin_info_t* nois0rInfo)
   nois0rInfo->name           = "Ising0r";
   nois0rInfo->author         = "Gephex crew";
   nois0rInfo->plugin_type    = F0R_PLUGIN_TYPE_SOURCE;
-  nois0rInfo->color_model    = F0R_COLOR_MODEL_PACKED32;
+  nois0rInfo->color_model    = F0R_COLOR_MODEL_RGBA8888;
   nois0rInfo->frei0r_version = FREI0R_MAJOR_VERSION;
   nois0rInfo->major_version  = 0;
   nois0rInfo->minor_version  = 9;
@@ -249,7 +253,7 @@ static void do_step(struct IsingField* f, uint32_t bf[3])
   int ysize = f->ysize;
 
   // start on second pixel of the second line (f->s[1][1]):
-  char* current = f->s + xsize + 1;
+  int8_t* current = f->s + xsize + 1;
 
   for (y = ysize-2; y > 0; --y)
     {
@@ -277,13 +281,16 @@ static void copy_field(const struct IsingField* f, uint32_t* framebuffer)
 {
   int i;
   char* s = f->s;
-  uint32_t* fr = framebuffer;
+  unsigned char* fr = (unsigned char*)framebuffer;
 
   for (i = (f->xsize)*(f->ysize)-1; i >= 0; --i)
     {
-      *(fr++) = *(s++);	  
+      unsigned char value = *(s++) > 0 ? 255 : 0;
+      *(fr++) = value;
+      *(fr++) = value;
+      *(fr++) = value;
+      *(fr++) = 255;
     }
 }
 
 //-------------------------------------------------------------------------
-

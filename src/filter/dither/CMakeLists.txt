@@ -2,7 +2,6 @@ set (SOURCES dither.c)
 set (TARGET dither)
 
 if (MSVC)
-  set_source_files_properties (dither.c PROPERTIES LANGUAGE CXX)
   set (SOURCES ${SOURCES} ${FREI0R_DEF})
 endif (MSVC)
 

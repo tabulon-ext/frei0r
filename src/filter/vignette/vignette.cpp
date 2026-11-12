@@ -17,9 +17,12 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#if defined(_MSC_VER)
+#define _USE_MATH_DEFINES
+#endif /* _MSC_VER */
 #include <cmath>
 #include "frei0r.hpp"
-#include "frei0r_math.h"
+#include "frei0r/math.h"
 
 
 /**
@@ -139,7 +142,7 @@ private:
         for (int y = 0; y < m_height; y++) {
             for (int x = 0; x < m_width; x++) {
 
-                // Euclidian distance to the center, normalized to [0,1]
+                // Euclidean distance to the center, normalized to [0,1]
                 r = std::sqrt(std::pow(scaleX*(x-cx), 2) + std::pow(scaleY*(y-cy), 2))/rmax;
 
                 // Subtract the clear center
@@ -167,7 +170,7 @@ private:
 
 
 
-frei0r::construct<Vignette> plugin("Vignette",
+static frei0r::construct<Vignette> plugin("Vignette",
                 "Lens vignetting effect, applies natural vignetting",
                 "Simon A. Eugster (Granjow)",
                 0,2,
